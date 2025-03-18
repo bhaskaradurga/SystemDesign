@@ -5,7 +5,7 @@
     <title>Communication</title>
   </head>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
+  <script src="node_modules/socket.io/client-dist/socket.io.js"></script>
   <body>
     <header>
       <h1>Communication</h1>
@@ -14,7 +14,10 @@
       <button id="btn">Click me</button>
       <button id="sse">Server Sent Event</button>
       <ul id="list"></ul>
-      <input type="text" id="message" />
+      <input type="text" id="message" placeholder="message" />
+      <input type="text" id="roomId" placeholder="roomId" />
+
+      <button id="send">Send</button>
       <div id="result"></div>
       <button id="updateData">Update Data</button>
     </main>
@@ -25,6 +28,79 @@
       const result = document.getElementById("result");
       const sse = document.getElementById("sse");
       const list = document.getElementById("list");
+      const send = document.getElementById("send");
+      const roomId = document.getElementById("roomId");
+      //socket configuration
+      const socket = window.io("http://localhost:3001");
+      //   socket.on("chat message", (msg) => {
+      //     console.log(msg, "in socket");
+      //     const li = document.createElement("li");
+      //     li.textContent = msg;
+      //     list.appendChild(li);
+      //   });
+
+      // Message listener for current room
+      function setupRoomListener(room) {
+        if (!socket._rooms) socket._rooms = new Set();
+        if (socket._rooms.has(room)) return; // Prevent multiple listeners
+
+        console.log("Listening for messages in room:", room);
+        socket.on("new_message", (data) => {
+          console.log("Raw data received:", data);
+          try {
+            data = JSON.parse(data);
+            console.log("Parsed message:", data);
+
+            if (data.roomId === room) {
+              console.log("New message:", data.message);
+              const li = document.createElement("li");
+              li.textContent = data.message;
+              list.appendChild(li);
+            }
+          } catch (error) {
+            console.error("Error parsing JSON:", error);
+          }
+        });
+
+        socket._rooms.add(room); // Track joined rooms
+      }
+
+      send.addEventListener("click", () => {
+        const currentRoom = roomId.value;
+
+        if (currentRoom) {
+          // Join the room first
+          socket.emit("join_room", currentRoom);
+
+          // Emit message to the room
+          socket.emit(
+            "room chat",
+            JSON.stringify({
+              message: textChange.value,
+              roomId: currentRoom,
+            })
+          );
+
+          // Setup listener to receive messages
+          setupRoomListener(currentRoom);
+
+          roomId.disabled = true; // Prevents changing room ID
+          textChange.value = "";
+        }
+      });
+
+      // Setup listener only once per room
+      //   if (!socket._rooms) socket._rooms = new Set();
+      //   if (!socket._rooms.has(currentRoom)) {
+      //     socket._rooms.add(currentRoom);
+      //   }
+      //   setupRoomListener(currentRoom);
+
+      //disable  room id text input after sending message
+      //     roomId.disabled = true;
+      //     textChange.value = "";
+      //   }
+      // });
       sse.addEventListener("click", () => {
         const eventSource = new EventSource("http://localhost:3001/sse");
         eventSource.onmessage = (event) => {

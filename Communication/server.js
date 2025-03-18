@@ -1,11 +1,97 @@
 const express = require("express");
 const cors = require("cors"); // Install using: npm install cors
 const app = express();
+const { Server } = require("socket.io");
+const http = require("http");
+const appServer = http.createServer(app);
+const io = new Server(appServer, {
+  cors: {
+    origin: "*",
+  },
+});
 let waitingQueue = [];
 let data = {
   timestamp: Date.now(),
   message: "New data available",
 };
+
+//sockets
+// io.on("connection", (Socket) => {
+//   console.log("New Connection");
+//   Socket.on("chat message", (msg) => {
+//     console.log(
+//       "message: " +
+//         JSON.parse(msg).message +
+//         " " +
+//         typeof JSON.parse(msg).roomId
+//     );
+//     io.emit("chat message", JSON.stringify(JSON.parse(msg).message)); // trying to create rooms for the websockets
+//     // message: {"message":"heelo ","roomId":"1234"}
+//   });
+//   // Handle room joining
+//   Socket.on("join_room", (room) => {
+//     Socket.join(room);
+//     console.log(`Socket ${Socket.id} joined room ${room}`);
+//   });
+//   // When receiving a chat message
+//   Socket.on("room chat", (msg) => {
+//     try {
+//       const parsedMsg = JSON.parse(msg);
+//       console.log(`Message: ${parsedMsg.message} | Room: ${parsedMsg.roomId}`);
+
+//       // Join the room
+//       // Socket.join(parsedMsg.roomId);
+
+//       // Broadcast to room members (excluding sender)
+//       Socket.to(parsedMsg.roomId).emit(
+//         "new_message",
+//         JSON.stringify({
+//           message: parsedMsg.message,
+//           roomId: parsedMsg.roomId,
+//         })
+//       );
+//     } catch (error) {
+//       console.error("Error processing message:", error);
+//     }
+//   });
+
+//   Socket.on("disconnect", () => {
+//     console.log("User disconnected");
+//   });
+// });
+io.on("connection", (socket) => {
+  console.log("New Connection");
+
+  // Handle room joining
+  socket.on("join_room", (room) => {
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined room ${room}`);
+  });
+
+  // Handle message sending within rooms
+  socket.on("room chat", (msg) => {
+    try {
+      const parsedMsg = JSON.parse(msg);
+      console.log(`Message: ${parsedMsg.message} | Room: ${parsedMsg.roomId}`);
+
+      // Broadcast message to all members in the room except sender
+      socket.to(parsedMsg.roomId).emit(
+        "new_message",
+        JSON.stringify({
+          message: parsedMsg.message,
+          roomId: parsedMsg.roomId,
+        })
+      );
+    } catch (error) {
+      console.error("Error processing message:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
 // 1. CORS Fix (Proper configuration)
 app.use(
   cors({
@@ -85,6 +171,6 @@ app.post("/newData", async (req, res) => {
 });
 
 // 4. Port consistency fix
-app.listen(3001, () => {
+appServer.listen(3001, () => {
   console.log("Server is running on port 3001"); // Correct port number
 });
