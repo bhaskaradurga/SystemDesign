@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Communication</title>
+  </head>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <body>
+    <header>
+      <h1>Communication</h1>
+    </header>
+    <main>
+      <button id="btn">Click me</button>
+      <button id="sse">Server Sent Event</button>
+      <ul id="list"></ul>
+      <input type="text" id="message" />
+      <div id="result"></div>
+      <button id="updateData">Update Data</button>
+    </main>
+    <script>
+      const textChange = document.getElementById("message");
+      const updateData = document.getElementById("updateData");
+      const btn = document.getElementById("btn");
+      const result = document.getElementById("result");
+      const sse = document.getElementById("sse");
+      const list = document.getElementById("list");
+      sse.addEventListener("click", () => {
+        const eventSource = new EventSource("http://localhost:3001/sse");
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          const child = document.createElement("li");
+          child.textContent = data.message;
+          list.appendChild(child);
+        };
+      });
+      let apiEndPoint = "shortPolling";
+      let json = {
+        longPolling: {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+        shortPooling: {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+        sse: {
+          method: "GET",
+          headers: {
+            "Content-Type": "text/event-stream",
+          },
+        },
+      };
+      //short Pooling longPolling ServerSentEvent
+      // for ServerSentEvent we need to make the req as get and have content type as text/event-stream and sse is created in ventSource not throufgh fetch
+      btn.addEventListener("click", async () => {
+        const response = await axios(`http://localhost:3001/${apiEndPoint}`, {
+          method: json[apiEndPoint].method,
+          headers: json[apiEndPoint].headers,
+          body: JSON.stringify({ message: "Hello" }),
+        });
+        // Check if the response status is OK (200-299)
+        if (!response.ok) {
+          // If the status is not OK, log the error status and text and return.
+          console.error("Server error:", response.status, response.statusText);
+          return;
+        }
+        // Check if the response body is empty
+        if (response.headers.get("content-length") === "0") {
+          console.warn("Empty response received from server");
+          return; // If empty, return early
+        }
+
+        try {
+          // Try to parse the JSON response
+          const data = await response.json();
+          document.getElementById("result").textContent = data.message;
+          console.log(data);
+        } catch (error) {
+          // Handle the JSON parsing error
+          console.error("Error parsing JSON:", error);
+        }
+      });
+      //update data
+      updateData.addEventListener("click", async () => {
+        const response = await fetch("http://localhost:3001/newData", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message: textChange.value }),
+        });
+        const data = await response.json();
+        document.getElementById("result").textContent = data.message;
+        console.log(data);
+      });
+      textChange.addEventListener("change", async (e) => {
+        textChange.value = e.target.value;
+      });
+    </script>
+  </body>
+</html>
