@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Data Cache</title>
+    <style>
+      header {
+        background-color: #333;
+        color: white;
+        text-align: center;
+        padding: 1rem;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+  <body>
+    <header>
+      <h1>Data Cache</h1>
+    </header>
+    <main>
+      <button id="btn">Click me</button>
+      <button id="updateData">Update Data</button>
+      <button id="indexDb">Add IndexDb</button>
+      // radio for crud operations for index database
+      <input type="radio" id="add" name="crud" value="add" checked />
+      <label for="add">Add</label>
+      <input type="radio" id="create" name="crud" value="create" />
+      <label for="create">Create</label>
+      <input type="radio" id="read" name="crud" value="read" />
+      <label for="read">Read</label>
+      <input type="radio" id="update" name="crud" value="update" />
+      <label for="update">Update</label>
+      <input type="radio" id="delete" name="crud" value="delete" />
+      <label for="delete">Delete</label>
+      <button id="localStorage">Add LocalStorage</button>
+      <button id="sessionStorage">Add Session Strage</button>
+      <input type="text" id="key" placeholder="key" />
+      <input type="text" id="value" placeholder="value" />
+      <div id="result"></div>
+      <button id="cookies">Add Cookies</button>
+    </main>
+    <script>
+      const btn = document.getElementById("btn");
+      const updateData = document.getElementById("updateData");
+      const result = document.getElementById("result");
+      const localStorageBtn = document.getElementById("localStorage");
+      const sessionStorageBtn = document.getElementById("sessionStorage");
+      const key = document.getElementById("key");
+      const value = document.getElementById("value");
+      const indexDb = document.getElementById("indexDb");
+      const cookies = document.getElementById("cookies");
+      cookies.addEventListener("click", async () => {
+        console.log("clicked");
+        const res = await fetch("http://localhost:3000/getCookie", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        console.log(document.cookie);
+      });
+      //get the selected radio button
+      var db = new Dexie("MyDatabase");
+      // Create a new database
+
+      // Define the table and its schema
+      db.version(1).stores({
+        users: "++id, name, age", // '++id' means auto-increment primary key
+      });
+
+      // Open the database
+      db.open()
+        .then(() => {
+          console.log("Database opened successfully");
+          console.log("Database opened:", db.tables);
+          db.users.add({ name: "Alice", age: 30 });
+          console.log("Users table:", db.users);
+        })
+        .catch((err) => {
+          console.error("Failed to open database: ", err);
+        });
+      indexDb.addEventListener("click", () => {
+        //we use dexie library to interact with indexDb
+        // Import Dexie (if using npm)
+        // import Dexie from 'dexie';
+        const selectedRadio = document.querySelector(
+          'input[name="crud"]:checked'
+        ).value;
+        console.log(selectedRadio);
+        if (selectedRadio === "create") {
+        }
+        if (selectedRadio === "add") {
+          // Add data to the table
+          async function addUser(name, age) {
+            try {
+              console.log("adding user", db);
+              const id = await db.users.add({ name, age });
+              console.log(`User added with id: ${id}`);
+            } catch (error) {
+              console.error("Failed to add user:", error);
+            }
+          }
+          addUser("Alice", 30);
+        }
+        if (selectedRadio === "read") {
+          // Read data from the table
+          db.users
+            .where("age")
+            .above(20)
+            .each((user) => {
+              console.log(user.name, user.age);
+            });
+          if (selectedRadio === "update") {
+            // Update data in the table
+            db.users.where("name").equals("Alice").modify({ age: 31 });
+          }
+          if (selectedRadio === "delete") {
+            // Delete data from the table
+            db.users.where("name").equals("Alice").delete();
+          }
+        }
+      });
+      localStorageBtn.addEventListener("click", () => {
+        localStorage.setItem(key.value, value.value);
+      });
+
+      sessionStorageBtn.addEventListener("click", () => {
+        sessionStorage.setItem(key.value, value.value);
+      });
+
+      btn.addEventListener("click", async () => {
+        const response = await fetch("http://localhost:3000/data");
+        const data = await response.json();
+        result.textContent = JSON.stringify(data);
+      });
+
+      updateData.addEventListener("click", async () => {
+        const response = await fetch("http://localhost:3000/update-data", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: "new data" }),
+        });
+        const data = await response.json();
+        result.textContent = JSON.stringify(data);
+      });
+    </script>
+  </body>
+</html>
